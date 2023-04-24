@@ -17,6 +17,7 @@
 //#define ARDUHAL_LOG_LEVEL 5
 //#include <esp32-hal-log.h>
 
+namespace SSLClientLib {
 
 #if !defined(MBEDTLS_KEY_EXCHANGE__SOME__PSK_ENABLED) && !defined(MBEDTLS_KEY_EXCHANGE_SOME_PSK_ENABLED)
 #  error "Please configure IDF framework to include mbedTLS -> Enable pre-shared-key ciphersuites and activate at least one cipher"
@@ -521,4 +522,6 @@ bool verify_ssl_dn(sslclient_context *ssl_client, const char* domain_name)
     }
 
     return false;
+}
+
 }

@@ -25,7 +25,7 @@
 class SSLClient : public Client
 {
 protected:
-    sslclient_context *sslclient;
+    SSLClientLib::sslclient_context *sslclient;
  
     int _lastError = 0;
 	int _peek = -1;

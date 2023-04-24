@@ -28,8 +28,8 @@ SSLClient::SSLClient()
 {
     _connected = false;
 
-    sslclient = new sslclient_context;
-    ssl_init(sslclient, nullptr);
+    sslclient = new SSLClientLib::sslclient_context;
+    SSLClientLib::ssl_init(sslclient, nullptr);
     sslclient->handshake_timeout = 120000;
     _CA_cert = NULL;
     _cert = NULL;
@@ -42,8 +42,8 @@ SSLClient::SSLClient(Client* client)
 {
     _connected = false;
 
-    sslclient = new sslclient_context;
-    ssl_init(sslclient, client);
+    sslclient = new SSLClientLib::sslclient_context;
+    SSLClientLib::ssl_init(sslclient, client);
     sslclient->handshake_timeout = 120000;
     _CA_cert = NULL;
     _cert = NULL;
@@ -66,7 +66,7 @@ void SSLClient::stop()
         _connected = false;
         _peek = -1;
     }
-    stop_ssl_socket(sslclient, _CA_cert, _cert, _private_key);
+    SSLClientLib::stop_ssl_socket(sslclient, _CA_cert, _cert, _private_key);
 }
 
 int SSLClient::connect(IPAddress ip, uint16_t port)
@@ -104,7 +104,7 @@ int SSLClient::connect(const char *host, uint16_t port, const char *_CA_cert, co
     if(_timeout > 0){
         sslclient->handshake_timeout = _timeout;
     }
-    int ret = start_ssl_client(sslclient, host, port, _timeout, _CA_cert, _cert, _private_key, NULL, NULL);
+    int ret = SSLClientLib::start_ssl_client(sslclient, host, port, _timeout, _CA_cert, _cert, _private_key, NULL, NULL);
     _lastError = ret;
     if (ret < 0) {
         log_e("start_ssl_client: %d", ret);
@@ -126,7 +126,7 @@ int SSLClient::connect(const char *host, uint16_t port, const char *pskIdent, co
     if(_timeout > 0){
         sslclient->handshake_timeout = _timeout;
     }
-    int ret = start_ssl_client(sslclient, host, port, _timeout, NULL, NULL, NULL, _pskIdent, _psKey);
+    int ret = SSLClientLib::start_ssl_client(sslclient, host, port, _timeout, NULL, NULL, NULL, _pskIdent, _psKey);
     _lastError = ret;
     if (ret < 0) {
         log_e("start_ssl_client: %d", ret);
@@ -165,7 +165,7 @@ size_t SSLClient::write(const uint8_t *buf, size_t size)
     if (!_connected) {
         return 0;
     }
-    int res = send_ssl_data(sslclient, buf, size);
+    int res = SSLClientLib::send_ssl_data(sslclient, buf, size);
     if (res < 0) {
         stop();
         res = 0;
@@ -195,7 +195,7 @@ int SSLClient::read(uint8_t *buf, size_t size)
         peeked = 1;
     }
     
-    int res = get_ssl_receive(sslclient, buf, size);
+    int res = SSLClientLib::get_ssl_receive(sslclient, buf, size);
     if (res < 0) {
         stop();
         return peeked?peeked:res;
@@ -209,7 +209,7 @@ int SSLClient::available()
     if (!_connected) {
         return peeked;
     }
-    int res = data_to_read(sslclient);
+    int res = SSLClientLib::data_to_read(sslclient);
     if (res < 0) {
         stop();
         return peeked?peeked:res;
@@ -254,7 +254,7 @@ bool SSLClient::verify(const char* fp, const char* domain_name)
     if (!sslclient)
         return false;
 
-    return verify_ssl_fingerprint(sslclient, fp, domain_name);
+    return SSLClientLib::verify_ssl_fingerprint(sslclient, fp, domain_name);
 }
 
 char *SSLClient::_streamLoad(Stream& stream, size_t size) {
