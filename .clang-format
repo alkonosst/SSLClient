@@ -1,0 +1,20 @@
+---
+BasedOnStyle: LLVM
+AccessModifierOffset: 0
+AlignArrayOfStructures: Left
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveBitFields: Consecutive
+AlignConsecutiveMacros: Consecutive
+AlignEscapedNewlines: Left
+AllowShortCaseLabelsOnASingleLine: true
+AlwaysBreakTemplateDeclarations: Yes
+BreakBeforeBraces: Custom
+BreakConstructorInitializers: BeforeComma
+BinPackArguments: false
+BraceWrapping:
+	AfterCaseLabel: true
+ColumnLimit: 100
+ContinuationIndentWidth: 2
+IndentCaseLabels: true
+PointerAlignment: Left
+...
