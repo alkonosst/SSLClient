@@ -1,7 +1,7 @@
 ## Description
 Briefly describe the changes made.
 
-## Motivación y contexto
+## Motivation and context
 Explain what led you to make this change and what it fixes.
 
 *If this PR solves an issue, mention it:* Fixes #(issue)
