@@ -75,6 +75,10 @@ void SSLClient::stop()
     SSLClientLib::stop_ssl_socket(sslclient, _CA_cert, _cert, _private_key);
 }
 
+void SSLClient::setClient(Client* client) {
+    sslclient->client = client;
+}
+
 int SSLClient::connect(IPAddress ip, uint16_t port)
 {
     if (_pskIdent && _psKey)

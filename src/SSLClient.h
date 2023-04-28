@@ -47,6 +47,7 @@ public:
     SSLClient(Client* client);
     ~SSLClient();
 
+    void setClient(Client* client);
     int connect(IPAddress ip, uint16_t port);
     int connect(IPAddress ip, uint16_t port, int32_t timeout);
     int connect(const char *host, uint16_t port);
