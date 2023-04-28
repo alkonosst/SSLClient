@@ -3,6 +3,7 @@
   Additions (c) 2011 Adrian McEwen.  All right reserved.
   Additions Copyright (C) 2017 Evandro Luis Copercini.
   Additions Copyright (C) 2019 Vadim Govorovski.
+  Additions Copyright (C) 2023 Maximiliano Ramirez.
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public
   License as published by the Free Software Foundation; either
@@ -17,6 +18,7 @@
 */
 
 #include "SSLClient.h"
+#include "esp_crt_bundle.h"
 #include <errno.h>
 
 #undef connect
@@ -28,29 +30,33 @@ SSLClient::SSLClient()
 {
     _connected = false;
 
-    sslclient = new sslclient_context;
-    ssl_init(sslclient, nullptr);
+    sslclient = new SSLClientLib::sslclient_context;
+    SSLClientLib::ssl_init(sslclient, nullptr);
     sslclient->handshake_timeout = 120000;
+    _use_insecure = false;
     _CA_cert = NULL;
     _cert = NULL;
     _private_key = NULL;
     _pskIdent = NULL;
     _psKey = NULL;
+    _alpn_protos = NULL;
+    _use_ca_bundle = false;
 }
 
 SSLClient::SSLClient(Client* client)
 {
     _connected = false;
 
-    sslclient = new sslclient_context;
-    ssl_init(sslclient, client);
+    sslclient = new SSLClientLib::sslclient_context;
+    SSLClientLib::ssl_init(sslclient, client);
     sslclient->handshake_timeout = 120000;
     _CA_cert = NULL;
     _cert = NULL;
     _private_key = NULL;
     _pskIdent = NULL;
     _psKey = NULL;
-
+    _alpn_protos = NULL;
+    _use_ca_bundle = false;
 }
 
 SSLClient::~SSLClient()
@@ -66,7 +72,7 @@ void SSLClient::stop()
         _connected = false;
         _peek = -1;
     }
-    stop_ssl_socket(sslclient, _CA_cert, _cert, _private_key);
+    SSLClientLib::stop_ssl_socket(sslclient, _CA_cert, _cert, _private_key);
 }
 
 int SSLClient::connect(IPAddress ip, uint16_t port)
@@ -93,18 +99,18 @@ int SSLClient::connect(const char *host, uint16_t port, int32_t timeout){
     return connect(host, port);
 }
 
-int SSLClient::connect(IPAddress ip, uint16_t port, const char *_CA_cert, const char *_cert, const char *_private_key)
+int SSLClient::connect(IPAddress ip, uint16_t port, const char *CA_cert, const char *cert, const char *private_key)
 {
-    return connect(ip.toString().c_str(), port, _CA_cert, _cert, _private_key);
+    return connect(ip.toString().c_str(), port, CA_cert, cert, private_key);
 }
 
-int SSLClient::connect(const char *host, uint16_t port, const char *_CA_cert, const char *_cert, const char *_private_key)
+int SSLClient::connect(const char *host, uint16_t port, const char *CA_cert, const char *cert, const char *private_key)
 {
     log_d("Connecting to %s:%d", host, port);
     if(_timeout > 0){
         sslclient->handshake_timeout = _timeout;
     }
-    int ret = start_ssl_client(sslclient, host, port, _timeout, _CA_cert, _cert, _private_key, NULL, NULL);
+    int ret = SSLClientLib::start_ssl_client(sslclient, host, port, _timeout, CA_cert, _use_ca_bundle, cert, private_key, NULL, NULL, _use_insecure, _alpn_protos);
     _lastError = ret;
     if (ret < 0) {
         log_e("start_ssl_client: %d", ret);
@@ -118,7 +124,7 @@ int SSLClient::connect(const char *host, uint16_t port, const char *_CA_cert, co
 }
 
 int SSLClient::connect(IPAddress ip, uint16_t port, const char *pskIdent, const char *psKey) {
-    return connect(ip.toString().c_str(), port,_pskIdent, _psKey);
+    return connect(ip.toString().c_str(), port, pskIdent, psKey);
 }
 
 int SSLClient::connect(const char *host, uint16_t port, const char *pskIdent, const char *psKey) {
@@ -126,13 +132,14 @@ int SSLClient::connect(const char *host, uint16_t port, const char *pskIdent, co
     if(_timeout > 0){
         sslclient->handshake_timeout = _timeout;
     }
-    int ret = start_ssl_client(sslclient, host, port, _timeout, NULL, NULL, NULL, _pskIdent, _psKey);
+    int ret = SSLClientLib::start_ssl_client(sslclient, host, port, _timeout, NULL, false, NULL, NULL, _pskIdent, _psKey, _use_insecure, _alpn_protos);
     _lastError = ret;
     if (ret < 0) {
         log_e("start_ssl_client: %d", ret);
         stop();
         return 0;
     }
+    log_i("SSL connection established");
     _connected = true;
     return 1;
 }
@@ -165,7 +172,7 @@ size_t SSLClient::write(const uint8_t *buf, size_t size)
     if (!_connected) {
         return 0;
     }
-    int res = send_ssl_data(sslclient, buf, size);
+    int res = SSLClientLib::send_ssl_data(sslclient, buf, size);
     if (res < 0) {
         stop();
         res = 0;
@@ -195,7 +202,7 @@ int SSLClient::read(uint8_t *buf, size_t size)
         peeked = 1;
     }
     
-    int res = get_ssl_receive(sslclient, buf, size);
+    int res = SSLClientLib::get_ssl_receive(sslclient, buf, size);
     if (res < 0) {
         stop();
         return peeked?peeked:res;
@@ -209,7 +216,7 @@ int SSLClient::available()
     if (!_connected) {
         return peeked;
     }
-    int res = data_to_read(sslclient);
+    int res = SSLClientLib::data_to_read(sslclient);
     if (res < 0) {
         stop();
         return peeked?peeked:res;
@@ -225,26 +232,44 @@ uint8_t SSLClient::connected()
     return _connected;
 }
 
+void SSLClient::setInsecure()
+{
+    _CA_cert = NULL;
+    _cert = NULL;
+    _private_key = NULL;
+    _pskIdent = NULL;
+    _psKey = NULL;
+    _use_insecure = true;   
+}
+
 void SSLClient::setCACert (const char *rootCA)
 {
-    log_d("Set root CA");
     _CA_cert = rootCA;
+}
+
+void SSLClient::setCACertBundle(const uint8_t * bundle)
+{
+    if (bundle != NULL)
+    {
+        arduino_esp_crt_bundle_set(bundle);
+        _use_ca_bundle = true;
+    } else {
+        arduino_esp_crt_bundle_detach(NULL);
+        _use_ca_bundle = false;
+    }
 }
 
 void SSLClient::setCertificate (const char *client_ca)
 {
-    log_d("Set client CA");
     _cert = client_ca;
 }
 
 void SSLClient::setPrivateKey (const char *private_key)
 {
-    log_d("Set client PK");
     _private_key = private_key;
 }
 
 void SSLClient::setPreSharedKey(const char *pskIdent, const char *psKey) {
-    log_d("Set PSK");
     _pskIdent = pskIdent;
     _psKey = psKey;
 }
@@ -254,26 +279,25 @@ bool SSLClient::verify(const char* fp, const char* domain_name)
     if (!sslclient)
         return false;
 
-    return verify_ssl_fingerprint(sslclient, fp, domain_name);
+    return SSLClientLib::verify_ssl_fingerprint(sslclient, fp, domain_name);
 }
 
 char *SSLClient::_streamLoad(Stream& stream, size_t size) {
-  static char *dest = nullptr;
-  if(dest) {
-      free(dest);
-  }
-  dest = (char*)malloc(size);
+  char *dest = (char*)malloc(size+1);
   if (!dest) {
     return nullptr;
   }
   if (size != stream.readBytes(dest, size)) {
     free(dest);
     dest = nullptr;
+    return nullptr;
   }
+  dest[size] = '\0';
   return dest;
 }
 
 bool SSLClient::loadCACert(Stream& stream, size_t size) {
+  if (_CA_cert != NULL) free(const_cast<char*>(_CA_cert));
   char *dest = _streamLoad(stream, size);
   bool ret = false;
   if (dest) {
@@ -284,6 +308,7 @@ bool SSLClient::loadCACert(Stream& stream, size_t size) {
 }
 
 bool SSLClient::loadCertificate(Stream& stream, size_t size) {
+  if (_cert != NULL) free(const_cast<char*>(_cert));
   char *dest = _streamLoad(stream, size);
   bool ret = false;
   if (dest) {
@@ -294,6 +319,7 @@ bool SSLClient::loadCertificate(Stream& stream, size_t size) {
 }
 
 bool SSLClient::loadPrivateKey(Stream& stream, size_t size) {
+  if (_private_key != NULL) free(const_cast<char*>(_private_key));
   char *dest = _streamLoad(stream, size);
   bool ret = false;
   if (dest) {
@@ -308,13 +334,16 @@ int SSLClient::lastError(char *buf, const size_t size)
     if (!_lastError) {
         return 0;
     }
-    char error_buf[100];
-    mbedtls_strerror(_lastError, error_buf, 100);
-    snprintf(buf, size, "%s", error_buf);
+    mbedtls_strerror(_lastError, buf, size);
     return _lastError;
 }
 
 void SSLClient::setHandshakeTimeout(unsigned long handshake_timeout)
 {
     sslclient->handshake_timeout = handshake_timeout * 1000;
+}
+
+void SSLClient::setAlpnProtocols(const char **alpn_protos)
+{
+    _alpn_protos = alpn_protos;
 }

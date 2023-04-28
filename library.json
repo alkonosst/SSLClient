@@ -1,14 +1,14 @@
 {
   "name": "SSLClient",
-  "version": "1.1.0",
-  "repository":
-  {
+  "version": "2.0.0",
+  "repository": {
     "type": "git",
-    "url": "https://github.com/govorox/SSLClient.git"
+    "url": "https://github.com/alkonosst/SSLClient.git"
   },
-  "description": "Provides secure network connection over a generic Arduino Client trasport object. The library can help to establish a TLS or SSL connection to a remote server via TinyGsmClient.",
-  "keywords": "SSL,TLS,GSM,Arduino,Client,TinyGsmClient,mbedtls",
+  "description": "Provides secure network connection over a generic Client transport object. With this library you can make a SSL/TLS connection to a remote server using any object of Client class, like WiFiClient or TinyGsmClient. Additionally, you can provide the SSLClient object with a Certificate Bundle, facilitating access to most websites.",
+  "keywords": "secure, ssl, tls, gsm, arduino, esp32, client, wificlient, tinygsm, tinygsmclient, mbedtls",
   "license": "GPL-3.0-or-later",
   "frameworks": "arduino",
-  "platforms": "esp32"
+  "platforms": "espressif32",
+  "headers": "SSLClient.h"
 }
