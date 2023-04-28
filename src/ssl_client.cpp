@@ -5,6 +5,7 @@
 * Original Copyright (C) 2006-2015, ARM Limited, All Rights Reserved, Apache 2.0 License.
 * Additions Copyright (C) 2017 Evandro Luis Copercini, Apache 2.0 License.
 * Additions Copyright (C) 2019 Vadim Govorovski.
+* Additions Copyright (C) 2023 Maximiliano Ramirez.
 */
 
 #include "Arduino.h"
@@ -13,19 +14,17 @@
 #include <algorithm>
 #include <string>
 #include "ssl_client.h"
-
-//#define ARDUHAL_LOG_LEVEL 5
-//#include <esp32-hal-log.h>
+#include "esp_crt_bundle.h"
 
 namespace SSLClientLib {
 
 #if !defined(MBEDTLS_KEY_EXCHANGE__SOME__PSK_ENABLED) && !defined(MBEDTLS_KEY_EXCHANGE_SOME_PSK_ENABLED)
-#  error "Please configure IDF framework to include mbedTLS -> Enable pre-shared-key ciphersuites and activate at least one cipher"
-#endif
+#  warning "Please call `idf.py menuconfig` then go to Component config -> mbedTLS -> TLS Key Exchange Methods -> Enable pre-shared-key ciphersuites and then check `Enable PSK based cyphersuite modes`. Save and Quit."
+#else
 
 const char *pers = "esp32-tls";
 
-static int _handle_error(int err, const char * file, int line)
+static int _handle_error(int err, const char * function, int line)
 {
     if(err == -30848){
         return err;
@@ -33,9 +32,9 @@ static int _handle_error(int err, const char * file, int line)
 #ifdef MBEDTLS_ERROR_C
     char error_buf[100];
     mbedtls_strerror(err, error_buf, 100);
-    log_e("[%s():%d]: (%d) %s", file, line, err, error_buf);
+    log_e("[%s():%d]: (%d) %s", function, line, err, error_buf);
 #else
-    log_e("[%s():%d]: code %d", file, line, err);
+    log_e("[%s():%d]: code %d", function, line, err);
 #endif
     return err;
 }
@@ -67,11 +66,11 @@ static int client_net_recv( void *ctx, unsigned char *buf, size_t len ) {
    // }
 
     int result = client->read(buf, len);
-    log_d("SSL client RX res=%d len=%d", result, len);
+    // log_d("SSL client RX res=%d len=%d", result, len);
 
-    if (result > 0) {
+    // if (result > 0) {
         //esp_log_buffer_hexdump_internal("SSL.RD", buf, (uint16_t)result, ESP_LOG_VERBOSE);
-    }
+    // }
     
     return result;
 }
@@ -96,11 +95,11 @@ int client_net_recv_timeout( void *ctx, unsigned char *buf,
     
     if (!result) return MBEDTLS_ERR_SSL_WANT_READ;
 
-    log_d("SSL client RX (received=%d expected=%d in %dms)", result, len, millis()-start);
+    // log_d("SSL client RX (received=%d expected=%d in %dms)", result, len, millis()-start);
 
-    if (result > 0) {
+    // if (result > 0) {
         //esp_log_buffer_hexdump_internal("SSL.RD", buf, (uint16_t)result, ESP_LOG_VERBOSE);
-    }
+    // }
     
     return result;
 }
@@ -134,29 +133,29 @@ static int client_net_send( void *ctx, const unsigned char *buf, size_t len ) {
     
     int result = client->write(buf, len);
     
-    log_d("SSL client TX res=%d len=%d", result, len);
+    // log_d("SSL client TX res=%d len=%d", result, len);
     return result;
 }
-
 
 void ssl_init(sslclient_context *ssl_client, Client *client)
 {
     log_v("Init SSL");
+    // reset embedded pointers to zero
+    memset(ssl_client, 0, sizeof(sslclient_context));
     ssl_client->client = client;
     mbedtls_ssl_init(&ssl_client->ssl_ctx);
     mbedtls_ssl_config_init(&ssl_client->ssl_conf);
     mbedtls_ctr_drbg_init(&ssl_client->drbg_ctx);
 }
 
-
-int start_ssl_client(sslclient_context *ssl_client, const char *host, uint32_t port, int timeout, const char *rootCABuff, const char *cli_cert, const char *cli_key, const char *pskIdent, const char *psKey)
+int start_ssl_client(sslclient_context *ssl_client, const char *host, uint32_t port, int timeout, const char *rootCABuff, bool useRootCABundle, const char *cli_cert, const char *cli_key, const char *pskIdent, const char *psKey, bool insecure, const char **alpn_protos)
 {
     char buf[512];
     int ret, flags;
     //int enable = 1;
     log_v("Free internal heap before TLS %u", ESP.getFreeHeap());
 
-    log_d("Connecting to %s:%d", host, port);
+    log_i("Connecting to %s:%d", host, port);
 
     Client *pClient = ssl_client->client;
 
@@ -188,16 +187,35 @@ int start_ssl_client(sslclient_context *ssl_client, const char *host, uint32_t p
         return handle_error(ret);
     }
 
+    if (alpn_protos != NULL) {
+        log_v("Setting ALPN protocols");
+        if ((ret = mbedtls_ssl_conf_alpn_protocols(&ssl_client->ssl_conf, alpn_protos) ) != 0) {
+            return handle_error(ret);
+        }
+    }
+
     // MBEDTLS_SSL_VERIFY_REQUIRED if a CA certificate is defined on Arduino IDE and
     // MBEDTLS_SSL_VERIFY_NONE if not.
 
-    if (rootCABuff != NULL) {
+    if (insecure) {
+        mbedtls_ssl_conf_authmode(&ssl_client->ssl_conf, MBEDTLS_SSL_VERIFY_NONE);
+        log_d("WARNING: Skipping SSL Verification. INSECURE!");
+    } else if (rootCABuff != NULL) {
         log_v("Loading CA cert");
         mbedtls_x509_crt_init(&ssl_client->ca_cert);
         mbedtls_ssl_conf_authmode(&ssl_client->ssl_conf, MBEDTLS_SSL_VERIFY_REQUIRED);
         ret = mbedtls_x509_crt_parse(&ssl_client->ca_cert, (const unsigned char *)rootCABuff, strlen(rootCABuff) + 1);
         mbedtls_ssl_conf_ca_chain(&ssl_client->ssl_conf, &ssl_client->ca_cert, NULL);
         //mbedtls_ssl_conf_verify(&ssl_client->ssl_ctx, my_verify, NULL );
+        if (ret < 0) {
+            // free the ca_cert in the case parse failed, otherwise, the old ca_cert still in the heap memory, that lead to "out of memory" crash.
+            mbedtls_x509_crt_free(&ssl_client->ca_cert);
+            return handle_error(ret);
+        }
+    } else if (useRootCABundle) {
+        log_v("Attaching root CA cert bundle");
+        ret = arduino_esp_crt_bundle_attach(&ssl_client->ssl_conf);
+
         if (ret < 0) {
             return handle_error(ret);
         }
@@ -232,11 +250,10 @@ int start_ssl_client(sslclient_context *ssl_client, const char *host, uint32_t p
             return handle_error(ret);
         }
     } else {
-        mbedtls_ssl_conf_authmode(&ssl_client->ssl_conf, MBEDTLS_SSL_VERIFY_NONE);
-        log_i("WARNING: Use certificates for a more secure communication!");
+        return -1;
     }
 
-    if (cli_cert != NULL && cli_key != NULL) {
+    if (!insecure && cli_cert != NULL && cli_key != NULL) {
         mbedtls_x509_crt_init(&ssl_client->client_cert);
         mbedtls_pk_init(&ssl_client->client_key);
 
@@ -244,6 +261,8 @@ int start_ssl_client(sslclient_context *ssl_client, const char *host, uint32_t p
 
         ret = mbedtls_x509_crt_parse(&ssl_client->client_cert, (const unsigned char *)cli_cert, strlen(cli_cert) + 1);
         if (ret < 0) {
+            // free the client_cert in the case parse failed, otherwise, the old client_cert still in the heap memory, that lead to "out of memory" crash.
+            mbedtls_x509_crt_free(&ssl_client->client_cert);
             return handle_error(ret);
         }
 
@@ -251,6 +270,7 @@ int start_ssl_client(sslclient_context *ssl_client, const char *host, uint32_t p
         ret = mbedtls_pk_parse_key(&ssl_client->client_key, (const unsigned char *)cli_key, strlen(cli_key) + 1, NULL, 0);
 
         if (ret != 0) {
+            mbedtls_x509_crt_free(&ssl_client->client_cert); // cert+key are free'd in pair
             return handle_error(ret);
         }
 
@@ -271,8 +291,7 @@ int start_ssl_client(sslclient_context *ssl_client, const char *host, uint32_t p
     }
 
     log_v("Setting up IO callbacks...");
-    mbedtls_ssl_set_bio(&ssl_client->ssl_ctx, ssl_client->client,
-                        client_net_send, NULL, client_net_recv_timeout );
+    mbedtls_ssl_set_bio(&ssl_client->ssl_ctx, ssl_client->client, client_net_send, NULL, client_net_recv_timeout);
 
     log_v("Performing the SSL/TLS handshake...");
     unsigned long handshake_start_time=millis();
@@ -282,7 +301,7 @@ int start_ssl_client(sslclient_context *ssl_client, const char *host, uint32_t p
         }
         if((millis()-handshake_start_time)>ssl_client->handshake_timeout)
 			return -1;
-	    vTaskDelay(10 / portTICK_PERIOD_MS);
+	    vTaskDelay(2);//2 ticks
     }
 
 
@@ -298,10 +317,9 @@ int start_ssl_client(sslclient_context *ssl_client, const char *host, uint32_t p
     log_v("Verifying peer X.509 certificate...");
 
     if ((flags = mbedtls_ssl_get_verify_result(&ssl_client->ssl_ctx)) != 0) {
-        bzero(buf, sizeof(buf));
+        memset(buf, 0, sizeof(buf));
         mbedtls_x509_crt_verify_info(buf, sizeof(buf), "  ! ", flags);
         log_e("Failed to verify peer certificate! verification info: %s", buf);
-        stop_ssl_socket(ssl_client, rootCABuff, cli_cert, cli_key);  //It's not safe continue.
         return handle_error(ret);
     } else {
         log_v("Certificate verified.");
@@ -332,10 +350,28 @@ void stop_ssl_socket(sslclient_context *ssl_client, const char *rootCABuff, cons
 
     ssl_client->client->stop();
 
+    // avoid memory leak if ssl connection attempt failed
+    if (ssl_client->ssl_conf.ca_chain != NULL) {
+        mbedtls_x509_crt_free(&ssl_client->ca_cert);
+    }
+    if (ssl_client->ssl_conf.key_cert != NULL) {
+        mbedtls_x509_crt_free(&ssl_client->client_cert);
+        mbedtls_pk_free(&ssl_client->client_key);
+    }
     mbedtls_ssl_free(&ssl_client->ssl_ctx);
     mbedtls_ssl_config_free(&ssl_client->ssl_conf);
     mbedtls_ctr_drbg_free(&ssl_client->drbg_ctx);
     mbedtls_entropy_free(&ssl_client->entropy_ctx);
+
+    // save only interesting fields
+    int handshake_timeout = ssl_client->handshake_timeout;
+    Client* pClient = ssl_client->client;
+
+    // reset embedded pointers to zero
+    memset(ssl_client, 0, sizeof(sslclient_context));
+    
+    ssl_client->handshake_timeout = handshake_timeout;
+    ssl_client->client = pClient;
 }
 
 
@@ -353,32 +389,32 @@ int data_to_read(sslclient_context *ssl_client)
     return res;
 }
 
-
-int send_ssl_data(sslclient_context *ssl_client, const uint8_t *data, uint16_t len)
+int send_ssl_data(sslclient_context *ssl_client, const uint8_t *data, size_t len)
 {
     log_d("Writing SSL (%d bytes)...", len);  //for low level debug
     int ret = -1;
 
     while ((ret = mbedtls_ssl_write(&ssl_client->ssl_ctx, data, len)) <= 0) {
-        if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+        if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE && ret < 0) {
+            log_v("Handling error %d", ret); //for low level debug
             return handle_error(ret);
         }
+
+        //wait for space to become available
+        vTaskDelay(2);
     }
 
-    len = ret;
-    log_v("%d bytes written", len);  //for low level debug
     return ret;
 }
 
-
 int get_ssl_receive(sslclient_context *ssl_client, uint8_t *data, int length)
 {
-    log_d( "Reading SSL (%d bytes)", length);   //for low level debug
+    // log_d( "Reading SSL (%d bytes)", length);   //for low level debug
     int ret = -1;
 
     ret = mbedtls_ssl_read(&ssl_client->ssl_ctx, data, length);
 
-    log_v( "%d bytes read", ret);   //for low level debug
+    // log_v( "%d bytes read", ret);   //for low level debug
     return ret;
 }
 
@@ -445,22 +481,10 @@ bool verify_ssl_fingerprint(sslclient_context *ssl_client, const char* fp, const
         fingerprint_local[i] = low | (high << 4);
     }
 
-    // Get certificate provided by the peer
-    const mbedtls_x509_crt* crt = mbedtls_ssl_get_peer_cert(&ssl_client->ssl_ctx);
-
-    if (!crt)
-    {
-        log_d("could not fetch peer certificate");
-        return false;
-    }
-
     // Calculate certificate's SHA256 fingerprint
     uint8_t fingerprint_remote[32];
-    mbedtls_sha256_context sha256_ctx;
-    mbedtls_sha256_init(&sha256_ctx);
-    mbedtls_sha256_starts(&sha256_ctx, false);
-    mbedtls_sha256_update(&sha256_ctx, crt->raw.p, crt->raw.len);
-    mbedtls_sha256_finish(&sha256_ctx, fingerprint_remote);
+    if(!get_peer_fingerprint(ssl_client, fingerprint_remote)) 
+        return false;
 
     // Check if fingerprints match
     if (memcmp(fingerprint_local, fingerprint_remote, 32))
@@ -474,6 +498,28 @@ bool verify_ssl_fingerprint(sslclient_context *ssl_client, const char* fp, const
         return verify_ssl_dn(ssl_client, domain_name);
     else
         return true;
+}
+
+bool get_peer_fingerprint(sslclient_context *ssl_client, uint8_t sha256[32]) 
+{
+    if (!ssl_client) {
+        log_d("Invalid ssl_client pointer");
+        return false;
+    };
+
+    const mbedtls_x509_crt* crt = mbedtls_ssl_get_peer_cert(&ssl_client->ssl_ctx);
+    if (!crt) {
+        log_d("Failed to get peer cert.");
+        return false;
+    };
+
+    mbedtls_sha256_context sha256_ctx;
+    mbedtls_sha256_init(&sha256_ctx);
+    mbedtls_sha256_starts(&sha256_ctx, false);
+    mbedtls_sha256_update(&sha256_ctx, crt->raw.p, crt->raw.len);
+    mbedtls_sha256_finish(&sha256_ctx, sha256);
+
+    return true;
 }
 
 // Checks if peer certificate has specified domain in CN or SANs
@@ -523,5 +569,6 @@ bool verify_ssl_dn(sslclient_context *ssl_client, const char* domain_name)
 
     return false;
 }
+#endif
 
 }
