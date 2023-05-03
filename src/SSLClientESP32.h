@@ -1,5 +1,5 @@
 /*
-  SSLClient.h - Base class that provides Client SSL to ESP32
+  SSLClientESP32.h - Base class that provides Client SSL to ESP32
   Additions (c) 2011 Adrian McEwen.  All right reserved.
   Additions Copyright (C) 2017 Evandro Luis Copercini.
   Additions Copyright (C) 2019 Vadim Govorovski.
@@ -17,13 +17,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef SSLClient_H
-#define SSLClient_H
+#ifndef SSLClientESP32_H
+#define SSLClientESP32_H
 #include "Arduino.h"
 #include "IPAddress.h"
 #include "ssl_client.h"
 
-class SSLClient : public Client
+class SSLClientESP32 : public Client
 {
 protected:
     SSLClientLib::sslclient_context *sslclient;
@@ -43,9 +43,9 @@ protected:
     bool _connected = false;
 
 public:
-    SSLClient();
-    SSLClient(Client* client);
-    ~SSLClient();
+    SSLClientESP32();
+    SSLClientESP32(Client* client);
+    ~SSLClientESP32();
 
     void setClient(Client* client);
     int connect(IPAddress ip, uint16_t port);
@@ -101,4 +101,4 @@ private:
     using Print::write;
 };
 
-#endif /* SSLClient_H */
+#endif /* SSLClientESP32_H */

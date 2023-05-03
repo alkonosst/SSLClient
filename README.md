@@ -1,7 +1,7 @@
 <h1 align="center">
   <a><img src=".img/ssl.png" alt="Logo" width="400"></a>
   <br>
-  SSLClient for ESP32
+  SSLClientESP32
 </h1>
 
 <p align="center">
@@ -22,7 +22,7 @@
 ---
 
 ## Description
-The **SSLClient** library allows establishing a secure connection using SSL/TLS. Has been designed
+The **SSLClientESP32** library allows establishing a secure connection using SSL/TLS. Has been designed
 for ESP32. Allows you to give a secure connection to any object derived from `Client`, such as
 [WiFiClient](https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi) and [TinyGsmClient](https://github.com/vshymanskyy/TinyGSM). Offers to be able to attach a [Certificate Bundle](https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFiClientSecure/README.md#using-a-bundle-of-root-certificate-authority-certificates) to the client, reducing the
 number of certificates entered manually into the firmware and increasing the possibility of
@@ -33,18 +33,23 @@ Here are some basic examples...
 
 ### Adding library to platformio.ini (PlatformIO)
 ```ini
+; Most recent changes
 lib_deps =
-  https://github.com/alkonosst/SSLClient.git
+  https://github.com/alkonosst/SSLClientESP32.git
+
+; Release vx.y.z
+lib_deps =
+  https://github.com/alkonosst/SSLClientESP32.git#v2.0.0
 ```
 
 ### Using WiFi and Root Certificate to client
 ```cpp
 #include <WiFi.h>
-#include "SSLClient.h"
+#include "SSLClientESP32.h"
 
 // Create clients
 WiFiClient base_client;
-SSLClient ssl_client(&base_client);
+SSLClientESP32 ssl_client(&base_client);
 
 // Root Certificate ISRG Root X1
 const char* isrg_root_ca = "-----BEGIN CERTIFICATE-----\n"
@@ -80,14 +85,14 @@ board_build.embed_files = data/crt/x509_crt_bundle.bin
 ```cpp
 #include <WiFi.h>
 #include "TinyGSM.h"
-#include "SSLClient.h"
+#include "SSLClientESP32.h"
 
 // Modem SIM7600G-H
 TinyGsm modem(Serial1);
 
 // Create clients
 TinyGsmClient base_client(modem);
-SSLClient ssl_client(&base_client);
+SSLClientESP32 ssl_client(&base_client);
 
 // Declaration of binary file
 extern const uint8_t ca_cert_bundle_start[] asm("_binary_data_crt_x509_crt_bundle_bin_start");
@@ -113,7 +118,7 @@ void foo() {
 ```cpp
 #include <WiFi.h>
 #include "TinyGSM.h"
-#include "SSLClient.h"
+#include "SSLClientESP32.h"
 
 // Modem SIM7600G-H
 TinyGsm modem(Serial1);
@@ -121,7 +126,7 @@ TinyGsm modem(Serial1);
 // Create clients
 WiFiClient base_client_1, base_client_2;
 TinyGsmClient base_client_3(modem);
-SSLClient ssl_client(&base_client_1);
+SSLClientESP32 ssl_client(&base_client_1);
 
 void setup() {
   // Attach certificate...
