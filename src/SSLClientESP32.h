@@ -31,14 +31,14 @@ protected:
     int _lastError = 0;
 	int _peek = -1;
     int _timeout = 0;
-    bool _use_insecure;
-    const char *_CA_cert;
-    const char *_cert;
-    const char *_private_key;
-    const char *_pskIdent; // identity for PSK cipher suites
-    const char *_psKey; // key in hex for PSK cipher suites
-    const char **_alpn_protos;
-    bool _use_ca_bundle;
+    bool _use_insecure = false;
+    const char *_CA_cert = nullptr;
+    const char *_cert = nullptr;
+    const char *_private_key = nullptr;
+    const char *_pskIdent = nullptr; // identity for PSK cipher suites
+    const char *_psKey = nullptr; // key in hex for PSK cipher suites
+    const char **_alpn_protos = nullptr;
+    bool _use_ca_bundle = false;
 
     bool _connected = false;
 

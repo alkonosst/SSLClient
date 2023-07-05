@@ -50,6 +50,7 @@ SSLClientESP32::SSLClientESP32(Client* client)
     sslclient = new SSLClientLib::sslclient_context;
     SSLClientLib::ssl_init(sslclient, client);
     sslclient->handshake_timeout = 120000;
+    _use_insecure = false;
     _CA_cert = NULL;
     _cert = NULL;
     _private_key = NULL;
