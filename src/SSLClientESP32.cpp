@@ -250,6 +250,7 @@ void SSLClientESP32::setInsecure()
 void SSLClientESP32::setCACert (const char *rootCA)
 {
     _CA_cert = rootCA;
+    _use_insecure = false;
 }
 
 void SSLClientESP32::setCACertBundle(const uint8_t * bundle)
