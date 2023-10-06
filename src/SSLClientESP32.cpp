@@ -50,6 +50,7 @@ SSLClientESP32::SSLClientESP32(Client* client)
     sslclient = new SSLClientLib::sslclient_context;
     SSLClientLib::ssl_init(sslclient, client);
     sslclient->handshake_timeout = 120000;
+    _use_insecure = false;
     _CA_cert = NULL;
     _cert = NULL;
     _private_key = NULL;
@@ -249,6 +250,7 @@ void SSLClientESP32::setInsecure()
 void SSLClientESP32::setCACert (const char *rootCA)
 {
     _CA_cert = rootCA;
+    _use_insecure = false;
 }
 
 void SSLClientESP32::setCACertBundle(const uint8_t * bundle)
