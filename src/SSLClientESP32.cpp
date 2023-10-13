@@ -18,7 +18,7 @@
 */
 
 #include "SSLClientESP32.h"
-#include "esp_crt_bundle.h"
+#include "ssl_lib_crt_bundle.h"
 #include <errno.h>
 
 #undef connect
@@ -257,10 +257,10 @@ void SSLClientESP32::setCACertBundle(const uint8_t * bundle)
 {
     if (bundle != NULL)
     {
-        arduino_esp_crt_bundle_set(bundle);
+        ssl_lib_crt_bundle_set(bundle);
         _use_ca_bundle = true;
     } else {
-        arduino_esp_crt_bundle_detach(NULL);
+        ssl_lib_crt_bundle_detach(NULL);
         _use_ca_bundle = false;
     }
 }

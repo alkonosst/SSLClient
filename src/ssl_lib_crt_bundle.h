@@ -13,10 +13,11 @@
 // limitations under the License.
 
 
-#ifndef _ESP_CRT_BUNDLE_H_
-#define _ESP_CRT_BUNDLE_H_
+#ifndef SSL_LIB_CRT_BUNDLE_H
+#define SSL_LIB_CRT_BUNDLE_H
 
 #include "mbedtls/ssl.h"
+#include "esp_err.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,7 +37,7 @@ extern "C" {
  *             - ESP_OK  if adding certificates was successful.
  *             - Other   if an error occured or an action must be taken by the calling process.
  */
-esp_err_t arduino_esp_crt_bundle_attach(void *conf);
+esp_err_t ssl_lib_crt_bundle_attach(void *conf);
 
 
 /**
@@ -46,7 +47,7 @@ esp_err_t arduino_esp_crt_bundle_attach(void *conf);
  *
  * @param[in]  conf      The config struct for the SSL connection.
  */
-void arduino_esp_crt_bundle_detach(mbedtls_ssl_config *conf);
+void ssl_lib_crt_bundle_detach(mbedtls_ssl_config *conf);
 
 
 /**
@@ -58,11 +59,11 @@ void arduino_esp_crt_bundle_detach(mbedtls_ssl_config *conf);
  *
  * @param[in]  x509_bundle     A pointer to the certificate bundle.
  */
-void arduino_esp_crt_bundle_set(const uint8_t *x509_bundle);
+void ssl_lib_crt_bundle_set(const uint8_t *x509_bundle);
 
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif //_ESP_CRT_BUNDLE_H_
+#endif //SSL_LIB_CRT_BUNDLE_H

@@ -17,11 +17,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef SSLClientESP32_H
-#define SSLClientESP32_H
+#ifndef SSLCLIENTESP32_H
+#define SSLCLIENTESP32_H
+
 #include "Arduino.h"
 #include "IPAddress.h"
-#include "ssl_client.h"
+#include "ssl_lib_client.h"
 
 class SSLClientESP32 : public Client
 {
@@ -101,4 +102,4 @@ private:
     using Print::write;
 };
 
-#endif /* SSLClientESP32_H */
+#endif /* SSLCLIENTESP32_H */
