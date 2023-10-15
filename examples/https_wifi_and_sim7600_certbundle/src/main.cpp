@@ -8,7 +8,7 @@
 #define TINY_GSM_RX_BUFFER 1024
 #define TINY_GSM_DEBUG     Serial
 
-#include "SSLClient.h"
+#include "SSLClientESP32.h"
 #include "TinyGSM.h"
 #include <Arduino.h>
 #include <WiFi.h>
@@ -36,7 +36,7 @@ WiFiClient client_wifi;
 TinyGsmClient client_modem(modem);
 
 // * Secure client object, initialized with Wifi client
-SSLClient ssl(&client_wifi);
+SSLClientESP32 ssl(&client_wifi);
 
 // * Certificate bundle with 41 most used root certificates
 extern const uint8_t ca_cert_bundle_start[] asm("_binary_data_crt_x509_crt_bundle_bin_start");

@@ -13,8 +13,8 @@
 #include <mbedtls/oid.h>
 #include <algorithm>
 #include <string>
-#include "ssl_client.h"
-#include "esp_crt_bundle.h"
+#include "ssl_lib_client.h"
+#include "ssl_lib_crt_bundle.h"
 
 namespace SSLClientLib {
 
@@ -214,7 +214,7 @@ int start_ssl_client(sslclient_context *ssl_client, const char *host, uint32_t p
         }
     } else if (useRootCABundle) {
         log_v("Attaching root CA cert bundle");
-        ret = arduino_esp_crt_bundle_attach(&ssl_client->ssl_conf);
+        ret = ssl_lib_crt_bundle_attach(&ssl_client->ssl_conf);
 
         if (ret < 0) {
             return handle_error(ret);

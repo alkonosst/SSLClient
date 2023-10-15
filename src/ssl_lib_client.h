@@ -4,8 +4,9 @@
  * Additions Copyright (C) 2023 Maximiliano Ramirez.
  */
 
-#ifndef SSLCLIENT_LIB_ARD_SSL_H
-#define SSLCLIENT_LIB_ARD_SSL_H
+#ifndef SSL_LIB_ARD_SSL_H
+#define SSL_LIB_ARD_SSL_H
+
 #include "mbedtls/platform.h"
 #include "mbedtls/net.h"
 #include "mbedtls/debug.h"
@@ -47,4 +48,4 @@ bool get_peer_fingerprint(sslclient_context *ssl_client, uint8_t sha256[32]);
 
 }
 
-#endif
+#endif // SSL_LIB_ARD_SSL_H
